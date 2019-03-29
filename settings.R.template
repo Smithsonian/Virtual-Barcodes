@@ -1,0 +1,46 @@
+#Specific name for this project
+project_name <- ""
+
+#Prefix for the images to code in the barcode
+image_prefix <- ""
+
+#Which field to use for the barcode
+barcode_field <- ""
+
+#Load data from this SQLite3 database
+database_file <- "data/data.sqlite3"
+
+#Avoid wrapping text in these fields
+results_table_fields_nowrap <- c("TITLE", "ID_NUMBER")
+
+#Size of barcode image
+barcode_size <- 380
+
+#Search item in EDAN?
+search_edan <- FALSE
+search_edan_field <- "ID_NUMBER"
+AppID <- ""
+AppKey <- ""
+
+#Function to define how to search in the dataframe
+search_db <- function(search_string, database_file){
+  
+  db <- dbConnect(RSQLite::SQLite(), database_file)
+  
+  search_query <- paste0("SELECT * FROM posters WHERE ID_NUMBER LIKE '%", search_string, "%' COLLATE NOCASE
+                         UNION
+                         SELECT * FROM posters WHERE OTHER_NUMBER LIKE '%", search_string, "%' COLLATE NOCASE
+                         UNION
+                         SELECT * FROM posters WHERE TITLE LIKE '%", search_string, "%' COLLATE NOCASE
+                         UNION
+                         SELECT * FROM posters WHERE DESCRIPTION LIKE '%", search_string, "%' COLLATE NOCASE
+                         UNION
+                         SELECT * FROM posters WHERE INSCRIPTION_TEXT LIKE '%", search_string, "%' COLLATE NOCASE")
+  
+  results_unfilt <- dbGetQuery(db, search_query)
+  
+  dbDisconnect(db)
+  
+  results <- dplyr::distinct(results_unfilt, .keep_all = TRUE)
+  return(results)
+}
