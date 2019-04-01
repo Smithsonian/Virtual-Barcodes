@@ -73,7 +73,11 @@ server <- function(input, output, session) {
     
     req(input$search_term)
     
-    results <<- search_db(input$search_term, database_file, input$takenfilter)
+    if (input$takenfilter){
+      results <<- search_db(input$search_term, database_file, TRUE)
+    }else{
+      results <<- search_db(input$search_term, database_file, FALSE)
+    }
     
     output$table1 <- DT::renderDataTable({
       
@@ -129,6 +133,10 @@ server <- function(input, output, session) {
       
       unique_id <- paste0("<p><strong>", image_prefix, res$MKEY, "</strong></p>")
       
+      output$insert_msg <- renderUI({
+        HTML("&nbsp;")
+      })
+      
       HTML(unique_id)
     })
     
@@ -164,11 +172,8 @@ server <- function(input, output, session) {
         
         tagList(
           p("Object image from EDAN:"),
-          #HTML(paste0("<a href=\"http://ids.si.edu/ids/dynamic?id=", ids_id, "\" target = _blank title = \"Image in IIIF Viewer\">")),
-          tags$img(src = img_url)#,
-          #HTML("</a>")
+          tags$img(src = img_url)
         )
-        
       }
     })
     
@@ -225,32 +230,29 @@ server <- function(input, output, session) {
       )
       })
     
-  
-  
-  observeEvent(input$delrecord, {
-    
-    if ((dim(results))[1] == 1){
-      res <- results
-    }else{
-      req(input$table1_rows_selected)
-      res <- results[input$table1_rows_selected, ]
-    }
-    
-    req(res)
-    
-    unique_id <- res$MKEY
-    
-    db <- dbConnect(RSQLite::SQLite(), database_file)
-    
-    n <- dbExecute(db, paste0("UPDATE posters SET taken = 1 WHERE MKEY = '", unique_id, "'"))
-    
-    dbDisconnect(db)
-    
-    output$insert_msg <- renderUI({
-      HTML("<br><div class=\"alert alert-success\" role=\"alert\">Object marked as Done</div>")
+    observeEvent(input$delrecord, {
+      
+      if ((dim(results))[1] == 1){
+        res <- results
+      }else{
+        req(input$table1_rows_selected)
+        res <- results[input$table1_rows_selected, ]
+      }
+      
+      req(res)
+      
+      unique_id <- res$MKEY
+      
+      db <- dbConnect(RSQLite::SQLite(), database_file)
+      
+      n <- dbExecute(db, paste0("UPDATE posters SET taken = 1 WHERE MKEY = '", unique_id, "'"))
+      
+      dbDisconnect(db)
+      
+      output$insert_msg <- renderUI({
+        HTML("<br><div class=\"alert alert-success\" role=\"alert\">Object marked as Done</div>")
+      })
     })
-    
-  })
   })  
 }
 
