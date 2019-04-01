@@ -17,14 +17,14 @@ unlink("data/posters.RData")
 unlink("data/posters.sqlite3")
 #Empty df for results
 posters_df <- data.frame(matrix(ncol = n_cols, nrow = 0, data = NA))
-
-#Get distinct keys
+# 
+# #Get distinct keys
 distinct_mkey <- dplyr::distinct(posters_df_xls, MKEY)
 distinct_mkey <- sort(distinct_mkey[, 1])
-
-
-
-
+# 
+# 
+# 
+# 
 for (i in 1:length(distinct_mkey)){
   #Get all rows for this key
   datarow <- dplyr::filter(posters_df_xls, MKEY == distinct_mkey[i])
@@ -32,8 +32,8 @@ for (i in 1:length(distinct_mkey)){
     posters_df[i, j] <- paste0(unique(datarow[, j]), collapse = ";")
   }
 }
-
-#Set variable names
+# 
+# #Set variable names
 names(posters_df) <- names(posters_df_xls)
 
 #save(x = posters_df, file = "data/posters.RData")
@@ -43,6 +43,8 @@ database_file <- "data/posters.sqlite3"
 db <- dbConnect(RSQLite::SQLite(), database_file)
 
 dbWriteTable(db, "posters", posters_df)
+
+#Add column TAKEN integer
 
 n <- dbExecute(db, 'CREATE INDEX p_ID_NUMBER ON posters(ID_NUMBER);')
 n <- dbExecute(db, 'CREATE INDEX p_OTHER_NUMBER ON posters(OTHER_NUMBER);')
@@ -55,5 +57,6 @@ n <- dbExecute(db, 'CREATE INDEX p_NOTE ON posters(NOTE);')
 n <- dbExecute(db, 'CREATE INDEX p_DESCRIPTION ON posters(DESCRIPTION);')
 n <- dbExecute(db, 'CREATE INDEX p_DESCRIPTION_1 ON posters(DESCRIPTION_1);')
 n <- dbExecute(db, 'CREATE INDEX p_MKEY ON posters(MKEY);')
+n <- dbExecute(db, 'CREATE INDEX p_TAKEN ON posters(TAKEN);')
 
 dbDisconnect(db)

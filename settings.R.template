@@ -8,7 +8,7 @@ image_prefix <- ""
 barcode_field <- ""
 
 #Load data from this SQLite3 database
-database_file <- "data/data.sqlite3"
+database_file <- ""
 
 #Avoid wrapping text in these fields
 results_table_fields_nowrap <- c("TITLE", "ID_NUMBER")
@@ -17,25 +17,60 @@ results_table_fields_nowrap <- c("TITLE", "ID_NUMBER")
 barcode_size <- 380
 
 #Search item in EDAN?
-search_edan <- FALSE
+search_edan <- TRUE
 search_edan_field <- "ID_NUMBER"
 AppID <- ""
 AppKey <- ""
 
 #Function to define how to search in the dataframe
-search_db <- function(search_string, database_file){
+search_db <- function(search_string, database_file, takenfilter){
+  
+  search_string <- trimws(search_string, "both")
   
   db <- dbConnect(RSQLite::SQLite(), database_file)
   
-  search_query <- paste0("SELECT * FROM posters WHERE ID_NUMBER LIKE '%", search_string, "%' COLLATE NOCASE
+  if (takenfilter == TRUE){
+    taken <- ""
+  }else {
+    taken <- "TAKEN = 0 AND"
+  }
+  
+  search_query <- paste0("SELECT * FROM posters WHERE ", taken, " ID_NUMBER LIKE '%", search_string, "%' COLLATE NOCASE
                          UNION
-                         SELECT * FROM posters WHERE OTHER_NUMBER LIKE '%", search_string, "%' COLLATE NOCASE
+                         SELECT * FROM posters WHERE ", taken, " OTHER_NUMBER LIKE '%", search_string, "%' COLLATE NOCASE
                          UNION
-                         SELECT * FROM posters WHERE TITLE LIKE '%", search_string, "%' COLLATE NOCASE
+                         SELECT * FROM posters WHERE ", taken, " TITLE LIKE '%", search_string, "%' COLLATE NOCASE
                          UNION
-                         SELECT * FROM posters WHERE DESCRIPTION LIKE '%", search_string, "%' COLLATE NOCASE
+                         SELECT * FROM posters WHERE ", taken, " TITLE_1 LIKE '%", search_string, "%' COLLATE NOCASE
                          UNION
-                         SELECT * FROM posters WHERE INSCRIPTION_TEXT LIKE '%", search_string, "%' COLLATE NOCASE")
+                         SELECT * FROM posters WHERE ", taken, " ITEM_NAME LIKE '%", search_string, "%' COLLATE NOCASE
+                         UNION
+                         SELECT * FROM posters WHERE ", taken, " ITEM_NAME_1 LIKE '%", search_string, "%' COLLATE NOCASE
+                         UNION
+                         SELECT * FROM posters WHERE ", taken, " DESCRIPTION LIKE '%", search_string, "%' COLLATE NOCASE
+                         UNION
+                         SELECT * FROM posters WHERE ", taken, " DESCRIPTION_1 LIKE '%", search_string, "%' COLLATE NOCASE
+                         UNION
+                         SELECT * FROM posters WHERE ", taken, " INSCRIPTION_TEXT LIKE '%", search_string, "%' COLLATE NOCASE
+                         UNION
+                         
+                         SELECT * FROM posters WHERE ", taken, " REPLACE(ID_NUMBER, '.', '') LIKE '%", search_string, "%' COLLATE NOCASE
+                         UNION
+                         SELECT * FROM posters WHERE ", taken, " REPLACE(OTHER_NUMBER, '.', '') LIKE '%", search_string, "%' COLLATE NOCASE
+                         UNION
+                         SELECT * FROM posters WHERE ", taken, " REPLACE(TITLE, '.', '') LIKE '%", search_string, "%' COLLATE NOCASE
+                         UNION
+                         SELECT * FROM posters WHERE ", taken, " REPLACE(TITLE_1, '.', '') LIKE '%", search_string, "%' COLLATE NOCASE
+                         UNION
+                         SELECT * FROM posters WHERE ", taken, " REPLACE(ITEM_NAME, '.', '') LIKE '%", search_string, "%' COLLATE NOCASE
+                         UNION
+                         SELECT * FROM posters WHERE ", taken, " REPLACE(ITEM_NAME_1, '.', '') LIKE '%", search_string, "%' COLLATE NOCASE
+                         UNION
+                         SELECT * FROM posters WHERE ", taken, " REPLACE(DESCRIPTION, '.', '') LIKE '%", search_string, "%' COLLATE NOCASE
+                         UNION
+                         SELECT * FROM posters WHERE ", taken, " REPLACE(DESCRIPTION_1, '.', '') LIKE '%", search_string, "%' COLLATE NOCASE
+                         UNION
+                         SELECT * FROM posters WHERE ", taken, " REPLACE(INSCRIPTION_TEXT, '.', '') LIKE '%", search_string, "%' COLLATE NOCASE")
   
   results_unfilt <- dbGetQuery(db, search_query)
   

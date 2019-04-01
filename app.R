@@ -8,7 +8,7 @@ library(RSQLite)
 library(shinyWidgets)
 
 app_name <- "Virtual Barcodes"
-app_ver <- "0.1.5"
+app_ver <- "0.1.6"
 github_link <- "https://github.com/Smithsonian/VirtualBarcodes/"
 
 options(stringsAsFactors = FALSE)
@@ -33,6 +33,7 @@ ui <- fluidPage(
      column(width = 2, 
             textInput("search_term", "Enter ID, title, or text from item"),
             actionButton("submit", "Search"),
+            checkboxInput("takenfilter", "Search imaged objects", FALSE),
             br(),
             hr(),
             uiOutput("item_image")
@@ -42,19 +43,25 @@ ui <- fluidPage(
      ),
      column(width = 3, 
             uiOutput("item_filename"),
-            imageOutput("item_barcode")
+            imageOutput("item_barcode"),
+            uiOutput("delbutton")
      )
    ),
   #hr(),
   DT::dataTableOutput("table1"),
   hr(),
-  HTML(paste0("<p><a href=\"http://dpo.si.edu\" target = _blank><img src=\"dpologo.jpg\"></a> | ", 
+  # HTML(paste0("<p><a href=\"http://dpo.si.edu\" target = _blank><img src=\"dpologo.jpg\"></a> | ", 
+  #             app_name, 
+  #             " ver. ", 
+  #             app_ver, 
+  #             " | <a href=\"", 
+  #             github_link, 
+  #             "\" target = _blank>Source code</a></p>"))
+  HTML(paste0("<p><img src=\"dpologo.jpg\" title=\"Digitization Program Office\"> | ", 
               app_name, 
               " ver. ", 
               app_ver, 
-              " | <a href=\"", 
-              github_link, 
-              "\" target = _blank>Source code</a></p>"))
+              "</p>"))
 )
 
 
@@ -66,7 +73,7 @@ server <- function(input, output, session) {
     
     req(input$search_term)
     
-    results <<- search_db(input$search_term, database_file)
+    results <<- search_db(input$search_term, database_file, input$takenfilter)
     
     output$table1 <- DT::renderDataTable({
       
@@ -196,7 +203,55 @@ server <- function(input, output, session) {
       )
 
     })
+    
+    
+    output$delbutton <- renderUI({
+      if ((dim(results))[1] == 1){
+        res <- results
+      }else{
+        req(input$table1_rows_selected)
+        res <- results[input$table1_rows_selected, ]
+      }
+      
+      req(res)
+      
+      tagList(
+        actionButton("delrecord", 
+                     label = "Image Taken", 
+                     class = "btn btn-primary",
+                     icon = icon("remove", lib = "glyphicon")),
+        br(),
+        uiOutput("insert_msg")
+      )
+      })
+    
+  
+  
+  observeEvent(input$delrecord, {
+    
+    if ((dim(results))[1] == 1){
+      res <- results
+    }else{
+      req(input$table1_rows_selected)
+      res <- results[input$table1_rows_selected, ]
+    }
+    
+    req(res)
+    
+    unique_id <- res$MKEY
+    
+    db <- dbConnect(RSQLite::SQLite(), database_file)
+    
+    n <- dbExecute(db, paste0("UPDATE posters SET taken = 1 WHERE MKEY = '", unique_id, "'"))
+    
+    dbDisconnect(db)
+    
+    output$insert_msg <- renderUI({
+      HTML("<br><div class=\"alert alert-success\" role=\"alert\">Object marked as Done</div>")
+    })
+    
   })
+  })  
 }
 
 
