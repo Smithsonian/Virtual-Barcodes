@@ -8,7 +8,7 @@ library(RSQLite)
 library(shinyWidgets)
 
 app_name <- "Virtual Barcodes"
-app_ver <- "0.1.4"
+app_ver <- "0.1.5"
 github_link <- "https://github.com/Smithsonian/VirtualBarcodes/"
 
 options(stringsAsFactors = FALSE)
@@ -21,7 +21,7 @@ source("settings.R")
 logfile <- paste0("logs/", format(Sys.time(), "%Y%m%d_%H%M%S"), ".txt")
 
 #Load data
-load(data_file)
+#load(data_file)
 
 
 
@@ -150,7 +150,7 @@ server <- function(input, output, session) {
         req(FALSE)
       }
       
-      if(!is.na(results$rows$content$descriptiveNonRepeating$online_media[[1]])){
+      if(exists("results$rows$content$descriptiveNonRepeating$online_media")){
         ids_id <- results$rows$content$descriptiveNonRepeating$online_media$media[[1]]$idsId
         
         img_url <- paste0("http://ids.si.edu/ids/deliveryService?id=", ids_id, "&max_w=250")
