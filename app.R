@@ -8,7 +8,7 @@ library(RSQLite)
 library(shinyWidgets)
 
 app_name <- "Virtual Barcodes"
-app_ver <- "0.1.6"
+app_ver <- "0.2.0"
 github_link <- "https://github.com/Smithsonian/VirtualBarcodes/"
 
 options(stringsAsFactors = FALSE)
@@ -33,7 +33,7 @@ ui <- fluidPage(
      column(width = 2, 
             textInput("search_term", "Enter ID, title, or text from item"),
             actionButton("submit", "Search"),
-            checkboxInput("takenfilter", "Search imaged objects", FALSE),
+            #checkboxInput("takenfilter", "Search imaged objects", FALSE),
             br(),
             hr(),
             uiOutput("item_image")
@@ -50,18 +50,21 @@ ui <- fluidPage(
   #hr(),
   DT::dataTableOutput("table1"),
   hr(),
-  # HTML(paste0("<p><a href=\"http://dpo.si.edu\" target = _blank><img src=\"dpologo.jpg\"></a> | ", 
-  #             app_name, 
-  #             " ver. ", 
-  #             app_ver, 
-  #             " | <a href=\"", 
-  #             github_link, 
-  #             "\" target = _blank>Source code</a></p>"))
-  HTML(paste0("<p><img src=\"dpologo.jpg\" title=\"Digitization Program Office\"> | ", 
-              app_name, 
-              " ver. ", 
-              app_ver, 
-              "</p>"))
+  if (kiosk){
+    HTML(paste0("<p><img src=\"dpologo.jpg\" title=\"Digitization Program Office\"> | ", 
+                app_name, 
+                " ver. ", 
+                app_ver, 
+                "</p>"))  
+  }else{
+    HTML(paste0("<p><a href=\"http://dpo.si.edu\" target = _blank><img src=\"dpologo.jpg\"></a> | ",
+                app_name,
+                " ver. ",
+                app_ver,
+                " | <a href=\"",
+                github_link,
+                "\" target = _blank>Source code</a></p>"))
+  }
 )
 
 
@@ -81,7 +84,7 @@ server <- function(input, output, session) {
     
     output$table1 <- DT::renderDataTable({
       
-      results_table <- dplyr::select(results, ID_NUMBER, ITEM_NAME, TITLE, DESCRIPTION, MEASUREMENT)
+      results_table <- dplyr::select(results, ID_NUMBER, ITEM_NAME, TITLE, DESCRIPTION, MEASUREMENTS)
   
       DT::datatable(results_table, 
                     escape = FALSE, 
@@ -111,7 +114,7 @@ server <- function(input, output, session) {
       
       unique_id <- paste0(image_prefix, res$MKEY)
       
-      system(paste("python scripts/barcode.py", unique_id, barcode_size))
+      system(paste("python3 scripts/barcode.py", unique_id, barcode_size))
       filename <- paste0("data/", unique_id, ".png")
       
       # Return a list containing the filename and alt text

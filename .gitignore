@@ -40,3 +40,6 @@ logs
 .Rproj.user
 *.Rproj
 settings.R
+
+oracle_update.R
+settings_db.R
