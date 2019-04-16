@@ -32,7 +32,6 @@ ui <- fluidPage(
             textInput("search_term", "Enter ID, title, or text from item"),
             actionButton("submit", "Search"),
             checkboxInput("takenfilter", "Search imaged objects", FALSE),
-            br(),
             hr(),
             uiOutput("item_image")
      ),
