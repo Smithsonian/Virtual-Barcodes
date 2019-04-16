@@ -8,7 +8,7 @@ library(RSQLite)
 library(shinyWidgets)
 
 app_name <- "Virtual Barcodes"
-app_ver <- "0.2.1"
+app_ver <- "0.2.2"
 github_link <- "https://github.com/Smithsonian/VirtualBarcodes/"
 
 options(stringsAsFactors = FALSE)
@@ -165,16 +165,16 @@ server <- function(input, output, session) {
         req(FALSE)
       }
       
-      if(exists("results$rows$content$descriptiveNonRepeating$online_media")){
+      try({
         ids_id <- results$rows$content$descriptiveNonRepeating$online_media$media[[1]]$idsId
-        
+      
         img_url <- paste0("http://ids.si.edu/ids/deliveryService?id=", ids_id, "&max_w=250")
         
         tagList(
           p("Object image from EDAN:"),
           tags$img(src = img_url)
         )
-      }
+        }, silent = TRUE)
     })
     
     
