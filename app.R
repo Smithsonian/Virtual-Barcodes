@@ -8,7 +8,7 @@ library(RSQLite)
 library(shinyWidgets)
 
 app_name <- "Virtual Barcodes"
-app_ver <- "0.2.0"
+app_ver <- "0.2.1"
 github_link <- "https://github.com/Smithsonian/VirtualBarcodes/"
 
 options(stringsAsFactors = FALSE)
@@ -20,8 +20,6 @@ source("settings.R")
 #Logfile
 logfile <- paste0("logs/", format(Sys.time(), "%Y%m%d_%H%M%S"), ".txt")
 
-#Load data
-#load(data_file)
 
 
 
@@ -33,7 +31,7 @@ ui <- fluidPage(
      column(width = 2, 
             textInput("search_term", "Enter ID, title, or text from item"),
             actionButton("submit", "Search"),
-            #checkboxInput("takenfilter", "Search imaged objects", FALSE),
+            checkboxInput("takenfilter", "Search imaged objects", FALSE),
             br(),
             hr(),
             uiOutput("item_image")
@@ -47,7 +45,6 @@ ui <- fluidPage(
             uiOutput("delbutton")
      )
    ),
-  #hr(),
   DT::dataTableOutput("table1"),
   hr(),
   if (kiosk){
@@ -76,13 +73,12 @@ server <- function(input, output, session) {
     
     req(input$search_term)
     
-    # if (input$takenfilter){
-    #   results <<- search_db(input$search_term, database_file, TRUE)
-    # }else{
-    #   results <<- search_db(input$search_term, database_file, FALSE)
-    # }
-    results <<- search_db(input$search_term, database_file, FALSE)
-    
+    if (input$takenfilter){
+      results <<- search_db(input$search_term, database_file, TRUE)
+    }else{
+      results <<- search_db(input$search_term, database_file, FALSE)
+    }
+
     output$table1 <- DT::renderDataTable({
       
       results_table <- dplyr::select(results, ID_NUMBER, ITEM_NAME, TITLE, DESCRIPTION, MEASUREMENTS)
@@ -247,9 +243,11 @@ server <- function(input, output, session) {
       
       unique_id <- res$MKEY
       
-      db <- dbConnect(RSQLite::SQLite(), database_file)
+      db <- dbConnect(RPostgres::Postgres(), dbname = pg_db,
+                      host = pg_host, port = 5432,
+                      user = pg_user, password = pg_pass)
       
-      n <- dbExecute(db, paste0("UPDATE posters SET taken = 1 WHERE MKEY = '", unique_id, "'"))
+      n <- dbExecute(db, paste0("INSERT INTO posters_taken (\"MKEY\") VALUES (", unique_id, ")"))
       
       dbDisconnect(db)
       
