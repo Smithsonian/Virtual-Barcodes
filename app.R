@@ -152,19 +152,22 @@ server <- function(input, output, session) {
       
       req(res)
       
-      query <- res$ID_NUMBER
-      
-      results <- EDANr::searchEDAN(query = query, 
-                                   AppID = AppID, 
-                                   AppKey = AppKey, 
-                                   rows = 1, 
-                                   start = 0)
-      
-      if (length(results$rows) == 0){
-        req(FALSE)
-      }
-      
       try({
+        query <- gsub('[\"]', '', res$ID_NUMBER)
+        #query <- res$ID_NUMBER
+        
+        
+        cat(query)  
+        try(results <- EDANr::searchEDAN(query = query, 
+                                     AppID = AppID, 
+                                     AppKey = AppKey, 
+                                     rows = 1, 
+                                     start = 0), silent = TRUE)
+        
+        if (length(results$rows) == 0){
+          req(FALSE)
+        }
+        
         ids_id <- results$rows$content$descriptiveNonRepeating$online_media$media[[1]]$idsId
       
         img_url <- paste0("http://ids.si.edu/ids/deliveryService?id=", ids_id, "&max_w=250")
