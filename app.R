@@ -76,11 +76,12 @@ server <- function(input, output, session) {
     
     req(input$search_term)
     
-    if (input$takenfilter){
-      results <<- search_db(input$search_term, database_file, TRUE)
-    }else{
-      results <<- search_db(input$search_term, database_file, FALSE)
-    }
+    # if (input$takenfilter){
+    #   results <<- search_db(input$search_term, database_file, TRUE)
+    # }else{
+    #   results <<- search_db(input$search_term, database_file, FALSE)
+    # }
+    results <<- search_db(input$search_term, database_file, FALSE)
     
     output$table1 <- DT::renderDataTable({
       
