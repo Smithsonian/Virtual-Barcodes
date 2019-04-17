@@ -23,6 +23,12 @@ logfile <- paste0("logs/", format(Sys.time(), "%Y%m%d_%H%M%S"), ".txt")
 
 
 
+if (!exists("kiosk")){
+  kiosk <- FALSE
+}
+
+
+
 # UI -----
 ui <- fluidPage(
   titlePanel(project_name),
@@ -33,6 +39,7 @@ ui <- fluidPage(
             actionButton("submit", "Search"),
             checkboxInput("takenfilter", "Search imaged objects", FALSE),
             hr(),
+            uiOutput("loading"),
             uiOutput("item_image")
      ),
      column(width = 7, 
@@ -72,6 +79,25 @@ server <- function(input, output, session) {
     
     req(input$search_term)
     
+    output$loading <- renderUI({
+      #Based on https://codepen.io/nksimmons/pen/NqGdNo
+      HTML("<button class=\"btn btn-lg btn-info\"><span class=\"glyphicon glyphicon-refresh glyphicon-refresh-animate\"></span> Loading...</button>
+           <style>.glyphicon-refresh-animate {
+            -animation: spin .7s infinite linear;
+            -webkit-animation: spin2 .7s infinite linear;
+        }
+        
+        @-webkit-keyframes spin2 {
+            from { -webkit-transform: rotate(0deg);}
+            to { -webkit-transform: rotate(360deg);}
+        }
+        
+        @keyframes spin {
+            from { transform: scale(1) rotate(0deg);}
+            to { transform: scale(1) rotate(360deg);}
+        }</style>")
+    })
+    
     if (input$takenfilter){
       results <<- search_db(input$search_term, database_file, TRUE)
     }else{
@@ -87,13 +113,17 @@ server <- function(input, output, session) {
                     rownames = FALSE,
                     selection = "single",
                     caption = "Items found",
-                    options = list(searching = FALSE, 
+                    options = list(searching = TRUE, 
                                    ordering = FALSE, 
                                    pageLength = 15, 
                                    paging = FALSE, 
                                    rownames = FALSE, 
                                    selection = 'single')
       ) %>% formatStyle(c("TITLE", "ID_NUMBER"), "white-space"="nowrap")
+    })
+    
+    output$loading <- renderUI({
+      HTML("&nbsp;")
     })
   
     # item_barcode ----
