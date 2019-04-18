@@ -6,6 +6,8 @@ library(futile.logger)
 library(EDANr)
 library(RSQLite)
 library(shinyWidgets)
+library(RPostgres)
+library(shinycssloaders)
 
 app_name <- "Virtual Barcodes"
 app_ver <- "0.2.2"
@@ -19,7 +21,7 @@ source("settings.R")
 
 #Logfile
 logfile <- paste0("logs/", format(Sys.time(), "%Y%m%d_%H%M%S"), ".txt")
-
+flog.logger("barcode", INFO, appender=appender.file(logfile))
 
 
 
@@ -32,25 +34,25 @@ if (!exists("kiosk")){
 # UI -----
 ui <- fluidPage(
   titlePanel(project_name),
-   br(),
-   fluidRow(
-     column(width = 2, 
-            textInput("search_term", "Enter ID, title, or text from item"),
-            actionButton("submit", "Search"),
-            checkboxInput("takenfilter", "Search imaged objects", FALSE),
-            hr(),
-            uiOutput("loading"),
-            uiOutput("item_image")
-     ),
-     column(width = 7, 
-            uiOutput("item_info")
-     ),
-     column(width = 3, 
-            uiOutput("item_filename"),
-            imageOutput("item_barcode"),
-            uiOutput("delbutton")
-     )
-   ),
+  br(),
+  fluidRow(
+    column(width = 2, 
+           textInput("search_term", "Enter ID, title, or text from item"),
+           actionButton("submit", "Search"),
+           checkboxInput("takenfilter", "Search imaged objects", FALSE),
+           hr(),
+           uiOutput("loading"),
+           uiOutput("item_image")
+    ),
+    column(width = 7, 
+           uiOutput("item_info")
+    ),
+    column(width = 3, 
+           uiOutput("item_filename"),
+           imageOutput("item_barcode"),
+           uiOutput("delbutton")
+    )
+  ),
   DT::dataTableOutput("table1"),
   hr(),
   if (kiosk){
@@ -73,41 +75,26 @@ ui <- fluidPage(
 
 # Server ----
 server <- function(input, output, session) {
-
+  
   # table1 ----
   observeEvent(input$submit, {
     
     req(input$search_term)
     
-    output$loading <- renderUI({
-      #Based on https://codepen.io/nksimmons/pen/NqGdNo
-      HTML("<button class=\"btn btn-lg btn-info\"><span class=\"glyphicon glyphicon-refresh glyphicon-refresh-animate\"></span> Loading...</button>
-           <style>.glyphicon-refresh-animate {
-            -animation: spin .7s infinite linear;
-            -webkit-animation: spin2 .7s infinite linear;
-        }
-        
-        @-webkit-keyframes spin2 {
-            from { -webkit-transform: rotate(0deg);}
-            to { -webkit-transform: rotate(360deg);}
-        }
-        
-        @keyframes spin {
-            from { transform: scale(1) rotate(0deg);}
-            to { transform: scale(1) rotate(360deg);}
-        }</style>")
-    })
+    flog.info(paste0("search_term: ", input$search_term), name = "barcode")
     
     if (input$takenfilter){
       results <<- search_db(input$search_term, database_file, TRUE)
     }else{
       results <<- search_db(input$search_term, database_file, FALSE)
     }
-
+    
     output$table1 <- DT::renderDataTable({
       
       results_table <- dplyr::select(results, ID_NUMBER, ITEM_NAME, TITLE, DESCRIPTION, MEASUREMENTS)
-  
+      
+      flog.info(paste0("number of results: ", dim(results_table)[1]), name = "barcode")
+      
       DT::datatable(results_table, 
                     escape = FALSE, 
                     rownames = FALSE,
@@ -125,7 +112,9 @@ server <- function(input, output, session) {
     output$loading <- renderUI({
       HTML("&nbsp;")
     })
-  
+    
+  #})
+    
     # item_barcode ----
     output$item_barcode <- renderImage({
       
@@ -138,7 +127,15 @@ server <- function(input, output, session) {
       
       req(res)
       
+      if (is.na(res$MKEY)){
+        req(FALSE)
+      }
+      
+      flog.info(paste0("item_barcode_res: ", paste(res, collapse = ';')), name = "barcode")
+      
       unique_id <- paste0(image_prefix, res$MKEY)
+      
+      flog.info(paste0("unique_id: ", unique_id), name = "barcode")
       
       system(paste("python3 scripts/barcode.py", unique_id, barcode_size))
       filename <- paste0("data/", unique_id, ".png")
@@ -159,6 +156,9 @@ server <- function(input, output, session) {
       }
       
       req(res)
+      if (is.na(res$MKEY)){
+        req(FALSE)
+      }
       
       unique_id <- paste0("<p><strong>", image_prefix, res$MKEY, "</strong></p>")
       
@@ -181,32 +181,36 @@ server <- function(input, output, session) {
       }
       
       req(res)
+      if (is.na(res$MKEY)){
+        req(FALSE)
+      }
       
       try({
         query <- gsub('[\"]', '', res$ID_NUMBER)
-        #query <- res$ID_NUMBER
+        flog.info(paste0("edan_query: ", query), name = "barcode")
         
-        
-        cat(query)  
         try(results <- EDANr::searchEDAN(query = query, 
-                                     AppID = AppID, 
-                                     AppKey = AppKey, 
-                                     rows = 1, 
-                                     start = 0), silent = TRUE)
+                                         AppID = AppID, 
+                                         AppKey = AppKey, 
+                                         rows = 1, 
+                                         start = 0), silent = TRUE)
         
-        if (length(results$rows) == 0){
-          req(FALSE)
+        if (length(results$rows) > 0){
+          ids_id <- results$rows$content$descriptiveNonRepeating$online_media$media[[1]]$idsId
+
+          if (!is.null(ids_id)){
+            flog.info(paste0("edan_query_ids: ", ids_id), name = "barcode")
+            
+            img_url <- paste0("http://ids.si.edu/ids/deliveryService?id=", ids_id, "&max_w=250")
+            cat
+            tagList(
+              p("Object image from EDAN:"),
+              tags$img(src = img_url)
+            )
+          }
+          
         }
-        
-        ids_id <- results$rows$content$descriptiveNonRepeating$online_media$media[[1]]$idsId
-      
-        img_url <- paste0("http://ids.si.edu/ids/deliveryService?id=", ids_id, "&max_w=250")
-        
-        tagList(
-          p("Object image from EDAN:"),
-          tags$img(src = img_url)
-        )
-        }, silent = TRUE)
+      }, silent = TRUE)
     })
     
     
@@ -220,8 +224,10 @@ server <- function(input, output, session) {
         res <- results[input$table1_rows_selected, ]
       }
       
-      #Continue only if there is a single row
       req(res)
+      if (is.na(res$MKEY)){
+        req(FALSE)
+      }
       
       row_data <- "<dl class=\"dl-horizontal\">"
       
@@ -238,7 +244,7 @@ server <- function(input, output, session) {
         heading = "Row selected",
         status = "primary"
       )
-
+      
     })
     
     
@@ -251,6 +257,9 @@ server <- function(input, output, session) {
       }
       
       req(res)
+      if (is.na(res$MKEY)){
+        req(FALSE)
+      }
       
       tagList(
         actionButton("delrecord", 
@@ -260,8 +269,9 @@ server <- function(input, output, session) {
         br(),
         uiOutput("insert_msg")
       )
-      })
+    })
     
+    #image_taken----
     observeEvent(input$delrecord, {
       
       if ((dim(results))[1] == 1){
@@ -272,6 +282,9 @@ server <- function(input, output, session) {
       }
       
       req(res)
+      if (is.na(res$MKEY)){
+        req(FALSE)
+      }
       
       unique_id <- res$MKEY
       
@@ -279,7 +292,20 @@ server <- function(input, output, session) {
                       host = pg_host, port = 5432,
                       user = pg_user, password = pg_pass)
       
-      n <- dbExecute(db, paste0("INSERT INTO posters_taken (\"MKEY\") VALUES (", unique_id, ")"))
+      flog.info(paste0("res_db: ", paste(res, collapse = ";")), name = "barcode")
+      flog.info(paste0("insert_db: ", unique_id), name = "barcode")
+      
+      check_q <- paste0("SELECT COUNT(*) as no_rows FROM posters_taken WHERE \"MKEY\" = ", unique_id)
+      no_rows_taken <- dbGetQuery(db, check_q)
+      
+      #Avoid adding again or database logic for this
+      if (no_rows_taken == 0){
+        insert_query <- paste0("INSERT INTO posters_taken (\"MKEY\") VALUES (", unique_id, ")")
+        
+        flog.info(paste0("insert_db_query: ", insert_query), name = "barcode")
+        
+        n <- dbExecute(db, insert_query)
+      }
       
       dbDisconnect(db)
       
@@ -287,7 +313,7 @@ server <- function(input, output, session) {
         HTML("<br><div class=\"alert alert-success\" role=\"alert\">Object marked as Done</div>")
       })
     })
-  })  
+    })  
 }
 
 
