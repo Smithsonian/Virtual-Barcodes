@@ -113,7 +113,7 @@ server <- function(input, output, session) {
       HTML("&nbsp;")
     })
     
-  #})
+    #})
     
     # item_barcode ----
     output$item_barcode <- renderImage({
@@ -197,7 +197,7 @@ server <- function(input, output, session) {
         
         if (length(results$rows) > 0){
           ids_id <- results$rows$content$descriptiveNonRepeating$online_media$media[[1]]$idsId
-
+          
           if (!is.null(ids_id)){
             flog.info(paste0("edan_query_ids: ", ids_id), name = "barcode")
             
@@ -313,7 +313,7 @@ server <- function(input, output, session) {
         HTML("<br><div class=\"alert alert-success\" role=\"alert\">Object marked as Done</div>")
       })
     })
-    })  
+  })  
 }
 
 
