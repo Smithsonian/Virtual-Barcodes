@@ -30,6 +30,7 @@ AppKey <- ""
 search_db <- function(search_string, database_file, takenfilter){
   
   search_string <- trimws(search_string, "both")
+  search_string <- stringr::str_replace_all(search_string, "'", "''")
   
   #Connect to the database
   db <- dbConnect(RPostgres::Postgres(), dbname = pg_db,

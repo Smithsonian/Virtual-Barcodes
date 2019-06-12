@@ -8,6 +8,7 @@ library(RSQLite)
 library(shinyWidgets)
 library(RPostgres)
 library(shinycssloaders)
+library(stringr)
 
 app_name <- "Virtual Barcodes"
 app_ver <- "0.2.2"
