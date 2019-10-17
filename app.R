@@ -8,7 +8,6 @@ library(RSQLite)
 library(shinyWidgets)
 library(RPostgres)
 library(shinycssloaders)
-library(stringr)
 
 app_name <- "Virtual Barcodes"
 app_ver <- "0.2.2"
@@ -34,7 +33,7 @@ if (!exists("kiosk")){
 
 # UI -----
 ui <- fluidPage(
-  titlePanel(project_name),
+  titlePanel(paste0(project_name, " - ", app_name)),
   br(),
   fluidRow(
     column(width = 2, 
@@ -54,7 +53,7 @@ ui <- fluidPage(
            uiOutput("delbutton")
     )
   ),
-  DT::dataTableOutput("table1"),
+  shinycssloaders::withSpinner(DT::dataTableOutput("table1")),
   hr(),
   if (kiosk){
     HTML(paste0("<p><img src=\"dpologo.jpg\" title=\"Digitization Program Office\"> | ", 
@@ -78,21 +77,26 @@ ui <- fluidPage(
 server <- function(input, output, session) {
   
   # table1 ----
-  observeEvent(input$submit, {
+  observeEvent(input$search_term, {
     
-    req(input$search_term)
-    
-    flog.info(paste0("search_term: ", input$search_term), name = "barcode")
-    
-    if (input$takenfilter){
-      results <<- search_db(input$search_term, database_file, TRUE)
-    }else{
-      results <<- search_db(input$search_term, database_file, FALSE)
-    }
     
     output$table1 <- DT::renderDataTable({
+    
+      req(input$search_term)
+    
+      flog.info(paste0("search_term: ", input$search_term), name = "barcode")
+    
+      if (input$takenfilter){
+        results <<- search_db(input$search_term, database_file, TRUE)
+      }else{
+        results <<- search_db(input$search_term, database_file, FALSE)
+      }
       
-      results_table <- dplyr::select(results, ID_NUMBER, ITEM_NAME, TITLE, DESCRIPTION, MEASUREMENTS)
+      #output$table1 <- DT::renderDataTable({
+      
+      results_table <- dplyr::select(results, id_number, item_name, title, description, measurements)
+      
+      no_rows <- prettyNum(dim(results_table)[1], big.mark = ",", scientific=FALSE)
       
       flog.info(paste0("number of results: ", dim(results_table)[1]), name = "barcode")
       
@@ -100,14 +104,14 @@ server <- function(input, output, session) {
                     escape = FALSE, 
                     rownames = FALSE,
                     selection = "single",
-                    caption = "Items found",
+                    caption = paste0(no_rows, " records found"),
                     options = list(searching = TRUE, 
-                                   ordering = FALSE, 
+                                   ordering = TRUE, 
                                    pageLength = 15, 
-                                   paging = FALSE, 
+                                   paging = TRUE, 
                                    rownames = FALSE, 
                                    selection = 'single')
-      ) %>% formatStyle(c("TITLE", "ID_NUMBER"), "white-space"="nowrap")
+      ) %>% formatStyle(c("title", "id_number"), "white-space"="nowrap")
     })
     
     output$loading <- renderUI({
@@ -119,6 +123,8 @@ server <- function(input, output, session) {
     # item_barcode ----
     output$item_barcode <- renderImage({
       
+      req(input$search_term)
+      
       if ((dim(results))[1] == 1){
         res <- results
       }else{
@@ -128,18 +134,24 @@ server <- function(input, output, session) {
       
       req(res)
       
-      if (is.na(res$MKEY)){
+      if (is.na(res$mkey)){
         req(FALSE)
       }
       
       flog.info(paste0("item_barcode_res: ", paste(res, collapse = ';')), name = "barcode")
       
-      unique_id <- paste0(image_prefix, res$MKEY)
+      unique_id <- paste0(image_prefix, res$mkey)
       
       flog.info(paste0("unique_id: ", unique_id), name = "barcode")
       
-      system(paste("python3 scripts/barcode.py", unique_id, barcode_size))
+      system(paste("python scripts/barcode.py", unique_id, barcode_size))
+      
       filename <- paste0("data/", unique_id, ".png")
+      
+      if (!file.exists(filename)){
+        #Some issue, try python3
+        system(paste("python3 scripts/barcode.py", unique_id, barcode_size))
+      }
       
       # Return a list containing the filename and alt text
       list(src = filename, alt = "Item data matrix")
@@ -149,6 +161,8 @@ server <- function(input, output, session) {
     # item_filename ----
     output$item_filename <- renderUI({
       
+      req(input$search_term)
+      
       if ((dim(results))[1] == 1){
         res <- results
       }else{
@@ -157,11 +171,11 @@ server <- function(input, output, session) {
       }
       
       req(res)
-      if (is.na(res$MKEY)){
+      if (is.na(res$mkey)){
         req(FALSE)
       }
       
-      unique_id <- paste0("<p><strong>", image_prefix, res$MKEY, "</strong></p>")
+      unique_id <- paste0("<p><strong>", image_prefix, res$mkey, "</strong></p>")
       
       output$insert_msg <- renderUI({
         HTML("&nbsp;")
@@ -174,6 +188,8 @@ server <- function(input, output, session) {
     # item_image ----
     output$item_image <- renderUI({
       
+      req(input$search_term)
+      
       if ((dim(results))[1] == 1){
         res <- results
       }else{
@@ -182,15 +198,15 @@ server <- function(input, output, session) {
       }
       
       req(res)
-      if (is.na(res$MKEY)){
+      if (is.na(res$mkey)){
         req(FALSE)
       }
       
       try({
-        query <- gsub('[\"]', '', res$ID_NUMBER)
+        query <- gsub('[\"]', '', res$id_number)
         flog.info(paste0("edan_query: ", query), name = "barcode")
         
-        try(results <- EDANr::searchEDAN(query = query, 
+        results <- try(EDANr::searchEDAN(query = query, 
                                          AppID = AppID, 
                                          AppKey = AppKey, 
                                          rows = 1, 
@@ -218,6 +234,8 @@ server <- function(input, output, session) {
     # item_info ----
     output$item_info <- renderUI({
       
+      req(input$search_term)
+      
       if ((dim(results))[1] == 1){
         res <- results
       }else{
@@ -226,7 +244,7 @@ server <- function(input, output, session) {
       }
       
       req(res)
-      if (is.na(res$MKEY)){
+      if (is.na(res$mkey)){
         req(FALSE)
       }
       
@@ -250,6 +268,9 @@ server <- function(input, output, session) {
     
     
     output$delbutton <- renderUI({
+      
+      req(input$search_term)
+      
       if ((dim(results))[1] == 1){
         res <- results
       }else{
@@ -258,7 +279,7 @@ server <- function(input, output, session) {
       }
       
       req(res)
-      if (is.na(res$MKEY)){
+      if (is.na(res$mkey)){
         req(FALSE)
       }
       
@@ -283,11 +304,11 @@ server <- function(input, output, session) {
       }
       
       req(res)
-      if (is.na(res$MKEY)){
+      if (is.na(res$mkey)){
         req(FALSE)
       }
       
-      unique_id <- res$MKEY
+      unique_id <- res$mkey
       
       db <- dbConnect(RPostgres::Postgres(), dbname = pg_db,
                       host = pg_host, port = 5432,
@@ -296,12 +317,12 @@ server <- function(input, output, session) {
       flog.info(paste0("res_db: ", paste(res, collapse = ";")), name = "barcode")
       flog.info(paste0("insert_db: ", unique_id), name = "barcode")
       
-      check_q <- paste0("SELECT COUNT(*) as no_rows FROM posters_taken WHERE \"MKEY\" = ", unique_id)
+      check_q <- paste0("SELECT COUNT(*) as no_rows FROM posters_taken WHERE mkey = ", unique_id)
       no_rows_taken <- dbGetQuery(db, check_q)
       
       #Avoid adding again or database logic for this
       if (no_rows_taken == 0){
-        insert_query <- paste0("INSERT INTO posters_taken (\"MKEY\") VALUES (", unique_id, ")")
+        insert_query <- paste0("INSERT INTO posters_taken (mkey) VALUES (", unique_id, ")")
         
         flog.info(paste0("insert_db_query: ", insert_query), name = "barcode")
         
