@@ -48,3 +48,6 @@ settings.R
 
 data
 logs
+
+update_shiny.sh
+
