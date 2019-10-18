@@ -37,11 +37,9 @@ ui <- fluidPage(
   br(),
   fluidRow(
     column(width = 2, 
-           textInput("search_term", "Enter ID, title, or text from item"),
-           actionButton("submit", "Search"),
+           textInput("search_term", "Enter ID, title, or text from object"),
            checkboxInput("takenfilter", "Search imaged objects", FALSE),
            hr(),
-           uiOutput("loading"),
            uiOutput("item_image")
     ),
     column(width = 7, 
@@ -49,7 +47,7 @@ ui <- fluidPage(
     ),
     column(width = 3, 
            uiOutput("item_filename"),
-           imageOutput("item_barcode"),
+           shinycssloaders::withSpinner(imageOutput("item_barcode")),
            uiOutput("delbutton")
     )
   ),
@@ -73,13 +71,12 @@ ui <- fluidPage(
 )
 
 
-# Server ----
+# Server
 server <- function(input, output, session) {
   
-  # table1 ----
   observeEvent(input$search_term, {
     
-    
+    #table1 ----
     output$table1 <- DT::renderDataTable({
     
       req(input$search_term)
@@ -91,8 +88,6 @@ server <- function(input, output, session) {
       }else{
         results <<- search_db(input$search_term, database_file, FALSE)
       }
-      
-      #output$table1 <- DT::renderDataTable({
       
       results_table <- dplyr::select(results, id_number, item_name, title, description, measurements)
       
@@ -114,12 +109,7 @@ server <- function(input, output, session) {
       ) %>% formatStyle(c("title", "id_number"), "white-space"="nowrap")
     })
     
-    output$loading <- renderUI({
-      HTML("&nbsp;")
-    })
-    
-    #})
-    
+
     # item_barcode ----
     output$item_barcode <- renderImage({
       
@@ -225,7 +215,6 @@ server <- function(input, output, session) {
               tags$img(src = img_url)
             )
           }
-          
         }
       }, silent = TRUE)
     })
@@ -267,6 +256,7 @@ server <- function(input, output, session) {
     })
     
     
+    # delbutton ----
     output$delbutton <- renderUI({
       
       req(input$search_term)
@@ -293,7 +283,7 @@ server <- function(input, output, session) {
       )
     })
     
-    #image_taken----
+
     observeEvent(input$delrecord, {
       
       if ((dim(results))[1] == 1){
