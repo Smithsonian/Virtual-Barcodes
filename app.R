@@ -4,13 +4,12 @@ library(DT)
 library(dplyr)
 library(futile.logger)
 library(EDANr)
-library(RSQLite)
+library(DBI)
 library(shinyWidgets)
-library(RPostgres)
 library(shinycssloaders)
 
 app_name <- "Virtual Barcodes"
-app_ver <- "0.2.2"
+app_ver <- "0.2.4"
 github_link <- "https://github.com/Smithsonian/VirtualBarcodes/"
 
 options(stringsAsFactors = FALSE)
@@ -38,7 +37,6 @@ ui <- fluidPage(
   fluidRow(
     column(width = 2, 
            textInput("search_term", "Enter ID, title, or text from object"),
-           checkboxInput("takenfilter", "Search imaged objects", FALSE),
            hr(),
            uiOutput("item_image")
     ),
@@ -47,8 +45,7 @@ ui <- fluidPage(
     ),
     column(width = 3, 
            uiOutput("item_filename"),
-           shinycssloaders::withSpinner(imageOutput("item_barcode")),
-           uiOutput("delbutton")
+           shinycssloaders::withSpinner(imageOutput("item_barcode"))
     )
   ),
   shinycssloaders::withSpinner(DT::dataTableOutput("table1")),
@@ -82,12 +79,8 @@ server <- function(input, output, session) {
       req(input$search_term)
     
       flog.info(paste0("search_term: ", input$search_term), name = "barcode")
-    
-      if (input$takenfilter){
-        results <<- search_db(input$search_term, database_file, TRUE)
-      }else{
-        results <<- search_db(input$search_term, database_file, FALSE)
-      }
+        
+      results <<- search_db(input$search_term)
       
       results_table <- dplyr::select(results, id_number, item_name, title, description, measurements)
       
@@ -196,14 +189,14 @@ server <- function(input, output, session) {
         query <- gsub('[\"]', '', res$id_number)
         flog.info(paste0("edan_query: ", query), name = "barcode")
         
-        results <- try(EDANr::searchEDAN(query = query, 
+        results1 <- try(EDANr::searchEDAN(query = query, 
                                          AppID = AppID, 
                                          AppKey = AppKey, 
                                          rows = 1, 
                                          start = 0), silent = TRUE)
         
-        if (length(results$rows) > 0){
-          ids_id <- results$rows$content$descriptiveNonRepeating$online_media$media[[1]]$idsId
+        if (length(results1$rows) > 0){
+          ids_id <- results1$rows$content$descriptiveNonRepeating$online_media$media[[1]]$idsId
           
           if (!is.null(ids_id)){
             flog.info(paste0("edan_query_ids: ", ids_id), name = "barcode")
@@ -253,77 +246,6 @@ server <- function(input, output, session) {
         status = "primary"
       )
       
-    })
-    
-    
-    # delbutton ----
-    output$delbutton <- renderUI({
-      
-      req(input$search_term)
-      
-      if ((dim(results))[1] == 1){
-        res <- results
-      }else{
-        req(input$table1_rows_selected)
-        res <- results[input$table1_rows_selected, ]
-      }
-      
-      req(res)
-      if (is.na(res$mkey)){
-        req(FALSE)
-      }
-      
-      tagList(
-        actionButton("delrecord", 
-                     label = "Image Taken", 
-                     class = "btn btn-primary",
-                     icon = icon("remove", lib = "glyphicon")),
-        br(),
-        uiOutput("insert_msg")
-      )
-    })
-    
-
-    observeEvent(input$delrecord, {
-      
-      if ((dim(results))[1] == 1){
-        res <- results
-      }else{
-        req(input$table1_rows_selected)
-        res <- results[input$table1_rows_selected, ]
-      }
-      
-      req(res)
-      if (is.na(res$mkey)){
-        req(FALSE)
-      }
-      
-      unique_id <- res$mkey
-      
-      db <- dbConnect(RPostgres::Postgres(), dbname = pg_db,
-                      host = pg_host, port = 5432,
-                      user = pg_user, password = pg_pass)
-      
-      flog.info(paste0("res_db: ", paste(res, collapse = ";")), name = "barcode")
-      flog.info(paste0("insert_db: ", unique_id), name = "barcode")
-      
-      check_q <- paste0("SELECT COUNT(*) as no_rows FROM posters_taken WHERE mkey = ", unique_id)
-      no_rows_taken <- dbGetQuery(db, check_q)
-      
-      #Avoid adding again or database logic for this
-      if (no_rows_taken == 0){
-        insert_query <- paste0("INSERT INTO posters_taken (mkey) VALUES (", unique_id, ")")
-        
-        flog.info(paste0("insert_db_query: ", insert_query), name = "barcode")
-        
-        n <- dbExecute(db, insert_query)
-      }
-      
-      dbDisconnect(db)
-      
-      output$insert_msg <- renderUI({
-        HTML("<br><div class=\"alert alert-success\" role=\"alert\">Object marked as Done</div>")
-      })
     })
   })  
 }
