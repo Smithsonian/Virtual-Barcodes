@@ -1,11 +1,24 @@
 #Specific name for this project
-project_name <- "NMAH Posters Lookup"
+project_name <- "Collection Lookup"
 
-#Prefix for the images to code in the barcode
+
+#Prefix and suffix for the images to code in the barcode
+# Either or both can be empty
 image_prefix <- "AHB"
+image_suffix <- ""
+
 
 #Which field to use for the barcode
-barcode_field <- ""
+barcode_field <- "MKEY"
+
+
+#How many characters needed before searching
+min_search_size <- 3
+
+
+#How to title the search box
+search_field_title <- "Enter ID, title, or text from object"
+
 
 #Database
 pg_user <- ""
@@ -17,8 +30,14 @@ pg_db <- ""
 #Avoid wrapping text in these fields
 results_table_fields_nowrap <- c("TITLE", "ID_NUMBER")
 
+
 #Size of barcode image
 barcode_size <- 380
+
+
+#If using as kiosk, don't display links to outside sources
+kiosk <- FALSE
+
 
 #Search item in EDAN?
 search_edan <- FALSE
@@ -26,8 +45,9 @@ search_edan_field <- "ID_NUMBER"
 AppID <- ""
 AppKey <- ""
 
+
 #Function to define how to search in the dataframe
-search_db <- function(search_string, database_file, takenfilter){
+search_db <- function(search_string){
   
   search_string <- trimws(search_string, "both")
   search_string <- stringr::str_replace_all(search_string, "'", "''")
@@ -36,12 +56,6 @@ search_db <- function(search_string, database_file, takenfilter){
   db <- dbConnect(RPostgres::Postgres(), dbname = pg_db,
                   host = pg_host, port = 5432,
                   user = pg_user, password = pg_pass)
-  
-  if (takenfilter == TRUE){
-     taken <- ''
-  }else {
-    taken <- 'AND c."MKEY" NOT IN (SELECT "MKEY" FROM posters_taken) '
-  }
   
      search_query <- #BUILD QUERY HERE
      
@@ -52,6 +66,3 @@ search_db <- function(search_string, database_file, takenfilter){
   
   return(results)
 }
-
-
-kiosk <- FALSE

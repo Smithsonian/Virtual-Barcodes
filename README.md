@@ -8,11 +8,12 @@ This app uses a field already in the collection database to link the images take
 
 It is assumed that:
 
- * the objects do not have barcodes 
- * no printed barcodes will be applied
- * the connection will be direct between the filename and the specified field from the database
+ * The objects do not have barcodes 
+ * No printed barcodes will be used
+ * The connection will be direct between the filename and the specified field from the database
+   * There is the option for a prefix or suffix to the field
 
-In the case there is already an object that has an image in EDAN, this image will be displayed.
+In the case the object has an image in EDAN, this image will be displayed.
 
 ## Requirements
 
@@ -25,12 +26,11 @@ In the case there is already an object that has an image in EDAN, this image wil
    * [shinyWidgets](https://cran.r-project.org/package=shinyWidgets)
    * [EDANr](https://github.com/Smithsonian/EDANr) (If querying EDAN)
  * [Shiny](https://shiny.rstudio.com/)
- * Python3 and the modules:
+ * Python and the modules:
    * PIL
    * [pylibdmtx](https://github.com/NaturalHistoryMuseum/pylibdmtx)
 
 ## Future enhancements
 
  * An option to print the barcodes on demand, when these will be applied to objects in a collection
- * Update the record in the database to indicate that the object has been digitized
- 
+ * Save other data fields
