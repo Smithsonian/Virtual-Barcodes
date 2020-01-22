@@ -5,6 +5,7 @@ library(dplyr)
 library(futile.logger)
 library(shinyWidgets)
 library(shinycssloaders)
+library(DBI)
 
 
 app_name <- "Virtual Barcodes"
@@ -31,20 +32,26 @@ ui <- fluidPage(
   titlePanel(paste0(project_name, " - ", app_name)),
   br(),
   fluidRow(
-    column(width = 2, 
-           textInput("search_term", search_field_title),
-           hr(),
-           uiOutput("item_edan")
-    ),
-    column(width = 7, 
-           uiOutput("item_info")
+    column(width = 9, 
+           fluidRow(
+             column(width = 3, 
+                    textInput("search_term", search_field_title),
+                    hr(),
+                    uiOutput("item_edan")
+             ),
+             column(width = 9, 
+                    uiOutput("item_info")
+             )
+           ),
+           shinycssloaders::withSpinner(DT::dataTableOutput("table1"))
     ),
     column(width = 3, 
-           uiOutput("item_filename"),
-           shinycssloaders::withSpinner(imageOutput("item_barcode"))
+           #uiOutput("item_filename"),
+           shinycssloaders::withSpinner(imageOutput("item_barcode"))#,
+           #uiOutput("extras")
     )
   ),
-  shinycssloaders::withSpinner(DT::dataTableOutput("table1")),
+  
   hr(),
   if (kiosk){
     HTML(paste0("<p><img src=\"dpologo.jpg\" title=\"Digitization Program Office\"> | ", 
@@ -78,26 +85,22 @@ server <- function(input, output, session) {
     
       flog.info(paste0("search_term: ", input$search_term), name = "barcode")
         
-      results <<- search_db(input$search_term)
+      #results <<- search_db(input$search_term)
+      results <- search_db(input$search_term)
+      session$userData$results <- results
       
-      results_table <- dplyr::select(results, id_number, item_name, title, description, measurements)
+      flog.info(paste0("number of results: ", dim(results)[1]), name = "barcode")
       
-      no_rows <- prettyNum(dim(results_table)[1], big.mark = ",", scientific=FALSE)
-      
-      flog.info(paste0("number of results: ", dim(results_table)[1]), name = "barcode")
-      
-      DT::datatable(results_table, 
+      DT::datatable(results, 
                     escape = FALSE, 
                     rownames = FALSE,
                     selection = "single",
-                    caption = paste0(no_rows, " records found"),
-                    options = list(searching = TRUE, 
+                    options = list(searching = FALSE, 
                                    ordering = TRUE, 
                                    pageLength = 15, 
                                    paging = TRUE, 
-                                   rownames = FALSE, 
-                                   selection = 'single')
-      ) %>% formatStyle(c("title", "id_number"), "white-space"="nowrap")
+                                   rownames = FALSE)
+      )
     })
     
 
@@ -107,6 +110,8 @@ server <- function(input, output, session) {
       req(input$search_term)
       req(nchar(input$search_term) > min_search_size)
       
+      results <- session$userData$results
+      
       if ((dim(results))[1] == 1){
         res <- results
       }else{
@@ -114,11 +119,14 @@ server <- function(input, output, session) {
         res <- results[input$table1_rows_selected, ]
       }
       
+      # req(input$table1_rows_selected)
+      # res <- results[input$table1_rows_selected, ]
+      
       req(res)
       
-      if (is.na(res$mkey)){
-        req(FALSE)
-      }
+      # if (is.na(res$taxonomy_irn)){
+      #   req(FALSE)
+      # }
       
       flog.info(paste0("item_barcode_res: ", paste(res, collapse = ';')), name = "barcode")
       
@@ -141,31 +149,31 @@ server <- function(input, output, session) {
     
     
     # item_filename ----
-    output$item_filename <- renderUI({
-      
-      req(input$search_term)
-      req(nchar(input$search_term) > min_search_size)
-      
-      if ((dim(results))[1] == 1){
-        res <- results
-      }else{
-        req(input$table1_rows_selected)
-        res <- results[input$table1_rows_selected, ]
-      }
-      
-      req(res)
-      if (is.na(res$mkey)){
-        req(FALSE)
-      }
-      
-      unique_id <- paste0("<p><strong>", image_prefix, res$mkey, image_suffix, "</strong></p>")
-      
-      output$insert_msg <- renderUI({
-        HTML("&nbsp;")
-      })
-      
-      HTML(unique_id)
-    })
+    # output$item_filename <- renderUI({
+    #   
+    #   req(input$search_term)
+    #   req(nchar(input$search_term) > min_search_size)
+    #   
+    #   if ((dim(results))[1] == 1){
+    #     res <- results
+    #   }else{
+    #     req(input$table1_rows_selected)
+    #     res <- results[input$table1_rows_selected, ]
+    #   }
+    #   
+    #   req(res)
+    #   if (is.na(res$taxonomy_irn)){
+    #     req(FALSE)
+    #   }
+    #   
+    #   unique_id <- paste0("<p><strong>", image_prefix, res$taxonomy_irn, image_suffix, "</strong></p>")
+    #   
+    #   output$insert_msg <- renderUI({
+    #     HTML("&nbsp;")
+    #   })
+    #   
+    #   HTML(unique_id)
+    # })
     
     
     # item_edan ----
@@ -173,6 +181,8 @@ server <- function(input, output, session) {
       if (search_edan == TRUE){
         req(input$search_term)
         req(nchar(input$search_term) > min_search_size)
+        
+        results <- session$userData$results
         
         if ((dim(results))[1] == 1){
           res <- results
@@ -182,10 +192,7 @@ server <- function(input, output, session) {
         }
         
         req(res)
-        if (is.na(res$mkey)){
-          req(FALSE)
-        }
-        
+
         try({
           query <- gsub('[\"]', '', res$id_number)
           flog.info(paste0("edan_query: ", query), name = "barcode")
@@ -207,12 +214,14 @@ server <- function(input, output, session) {
               tagList(
                 p("Object image from EDAN:"),
                 tags$img(src = img_url)
-              )
+                )
+              }
             }
-          }
-        }, silent = TRUE)
-      }
-    })
+          }, silent = TRUE)
+        }
+      })
+    
+    
     
     
     # item_info ----
@@ -220,6 +229,8 @@ server <- function(input, output, session) {
       
       req(input$search_term)
       req(nchar(input$search_term) > min_search_size)
+      
+      results <- session$userData$results
       
       if ((dim(results))[1] == 1){
         res <- results
@@ -229,9 +240,10 @@ server <- function(input, output, session) {
       }
       
       req(res)
-      if (is.na(res$mkey)){
-        req(FALSE)
-      }
+      
+      # if (is.na(res$taxonomy_irn)){
+      #   req(FALSE)
+      # }
       
       row_data <- "<dl class=\"dl-horizontal\">"
       
@@ -250,7 +262,27 @@ server <- function(input, output, session) {
       )
       
     })
+    
+    
+    
+    # extras ----
+    output$extras <- renderUI({
+      # 
+      # req(input$table1_rows_selected)
+      # res <- results[input$table1_rows_selected, ]
+      # 
+      # 
+      # tagList(
+      #   textInput("Specimen:", "specimen_id"),
+      #   actionButton(label = "Save record", inputId = "submit_specimen")
+      # )
+      
+    })
+    
   })  
+  
+  
+  
 }
 
 

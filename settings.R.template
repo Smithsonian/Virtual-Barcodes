@@ -1,24 +1,19 @@
 #Specific name for this project
 project_name <- "Collection Lookup"
 
-
 #Prefix and suffix for the images to code in the barcode
 # Either or both can be empty
 image_prefix <- "AHB"
 image_suffix <- ""
 
-
 #Which field to use for the barcode
 barcode_field <- "MKEY"
-
 
 #How many characters needed before searching
 min_search_size <- 3
 
-
 #How to title the search box
 search_field_title <- "Enter ID, title, or text from object"
-
 
 #Database
 pg_user <- ""
@@ -26,25 +21,20 @@ pg_pass <- ""
 pg_host <- ""
 pg_db <- ""
 
-
 #Avoid wrapping text in these fields
 results_table_fields_nowrap <- c("TITLE", "ID_NUMBER")
-
 
 #Size of barcode image
 barcode_size <- 380
 
-
 #If using as kiosk, don't display links to outside sources
 kiosk <- FALSE
-
 
 #Search item in EDAN?
 search_edan <- FALSE
 search_edan_field <- "ID_NUMBER"
 AppID <- ""
 AppKey <- ""
-
 
 #Function to define how to search in the dataframe
 search_db <- function(search_string){
