@@ -15,6 +15,12 @@ It is assumed that:
 
 In the case the object has an image in EDAN, this image will be displayed.
 
+## Screenshots
+
+This example is from the CHSDM collection and displays the data matrix barcode as well as the image of the object from EDAN:
+
+![ch_example](https://user-images.githubusercontent.com/2302171/95353678-8a63ab80-0891-11eb-97d4-7d3563b95919.png)
+
 ## Requirements
 
  * R and the packages:
