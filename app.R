@@ -9,7 +9,7 @@ library(DBI)
 
 
 app_name <- "Virtual Barcodes"
-app_ver <- "0.3.0"
+app_ver <- "0.3.1"
 github_link <- "https://github.com/Smithsonian/VirtualBarcodes/"
 
 options(stringsAsFactors = FALSE)
@@ -37,18 +37,18 @@ ui <- fluidPage(
              column(width = 3, 
                     textInput("search_term", search_field_title),
                     hr(),
-                    uiOutput("item_edan")
+                    shinycssloaders::withSpinner(uiOutput("item_edan"))
              ),
              column(width = 9, 
-                    uiOutput("item_info")
+                    uiOutput("item_info"),
+                    shinycssloaders::withSpinner(DT::dataTableOutput("table1"))
              )
            ),
-           shinycssloaders::withSpinner(DT::dataTableOutput("table1"))
+           
     ),
     column(width = 3, 
-           #uiOutput("item_filename"),
-           shinycssloaders::withSpinner(imageOutput("item_barcode"))#,
-           #uiOutput("extras")
+           uiOutput("item_filename"),
+           shinycssloaders::withSpinner(imageOutput("item_barcode"))
     )
   ),
   
@@ -74,19 +74,20 @@ ui <- fluidPage(
 # Server
 server <- function(input, output, session) {
   
+  db <- dbConnect(RSQLite::SQLite(), database_file)
+  
   observeEvent(input$search_term, {
     Sys.sleep(1)
     
     #table1 ----
     output$table1 <- DT::renderDataTable({
-    
+      
       req(input$search_term)
       req(nchar(input$search_term) > min_search_size)
-    
+      
       flog.info(paste0("search_term: ", input$search_term), name = "barcode")
-        
-      #results <<- search_db(input$search_term)
-      results <- search_db(input$search_term)
+      
+      results <- search_db(input$search_term, db)
       session$userData$results <- results
       
       flog.info(paste0("number of results: ", dim(results)[1]), name = "barcode")
@@ -103,7 +104,7 @@ server <- function(input, output, session) {
       )
     })
     
-
+    
     # item_barcode ----
     output$item_barcode <- renderImage({
       
@@ -119,18 +120,11 @@ server <- function(input, output, session) {
         res <- results[input$table1_rows_selected, ]
       }
       
-      # req(input$table1_rows_selected)
-      # res <- results[input$table1_rows_selected, ]
-      
       req(res)
-      
-      # if (is.na(res$taxonomy_irn)){
-      #   req(FALSE)
-      # }
       
       flog.info(paste0("item_barcode_res: ", paste(res, collapse = ';')), name = "barcode")
       
-      unique_id <- paste0(image_prefix, res$mkey, image_suffix)
+      unique_id <- paste0(image_prefix, res$object_id, image_suffix)
       
       flog.info(paste0("unique_id: ", unique_id), name = "barcode")
       
@@ -149,77 +143,32 @@ server <- function(input, output, session) {
     
     
     # item_filename ----
-    # output$item_filename <- renderUI({
-    #   
-    #   req(input$search_term)
-    #   req(nchar(input$search_term) > min_search_size)
-    #   
-    #   if ((dim(results))[1] == 1){
-    #     res <- results
-    #   }else{
-    #     req(input$table1_rows_selected)
-    #     res <- results[input$table1_rows_selected, ]
-    #   }
-    #   
-    #   req(res)
-    #   if (is.na(res$taxonomy_irn)){
-    #     req(FALSE)
-    #   }
-    #   
-    #   unique_id <- paste0("<p><strong>", image_prefix, res$taxonomy_irn, image_suffix, "</strong></p>")
-    #   
-    #   output$insert_msg <- renderUI({
-    #     HTML("&nbsp;")
-    #   })
-    #   
-    #   HTML(unique_id)
-    # })
-    
-    
-    # item_edan ----
-    output$item_edan <- renderUI({
-      if (search_edan == TRUE){
-        req(input$search_term)
-        req(nchar(input$search_term) > min_search_size)
-        
-        results <- session$userData$results
-        
-        if ((dim(results))[1] == 1){
-          res <- results
-        }else{
-          req(input$table1_rows_selected)
-          res <- results[input$table1_rows_selected, ]
-        }
-        
-        req(res)
-
-        try({
-          query <- gsub('[\"]', '', res$id_number)
-          flog.info(paste0("edan_query: ", query), name = "barcode")
-          
-          results1 <- try(EDANr::searchEDAN(query = query, 
-                                            AppID = AppID, 
-                                            AppKey = AppKey, 
-                                            rows = 1, 
-                                            start = 0), silent = TRUE)
-          
-          if (length(results1$rows) > 0){
-            ids_id <- results1$rows$content$descriptiveNonRepeating$online_media$media[[1]]$idsId
-            
-            if (!is.null(ids_id)){
-              flog.info(paste0("edan_query_ids: ", ids_id), name = "barcode")
-              
-              img_url <- paste0("http://ids.si.edu/ids/deliveryService?id=", ids_id, "&max_w=250")
-              cat
-              tagList(
-                p("Object image from EDAN:"),
-                tags$img(src = img_url)
-                )
-              }
-            }
-          }, silent = TRUE)
-        }
+    output$item_filename <- renderUI({
+      
+      req(input$search_term)
+      req(nchar(input$search_term) > min_search_size)
+      
+      results <- session$userData$results
+      
+      if ((dim(results))[1] == 1){
+        res <- results
+      }else{
+        req(input$table1_rows_selected)
+        res <- results[input$table1_rows_selected, ]
+      }
+      
+      req(res)
+      
+      unique_id <- paste0("<p><strong>", image_prefix, res$object_id, image_suffix, "</strong></p>")
+      
+      output$insert_msg <- renderUI({
+        HTML("&nbsp;")
       })
+      
+      HTML(unique_id)
+    })
+    
+    
     
     
     
@@ -240,10 +189,6 @@ server <- function(input, output, session) {
       }
       
       req(res)
-      
-      # if (is.na(res$taxonomy_irn)){
-      #   req(FALSE)
-      # }
       
       row_data <- "<dl class=\"dl-horizontal\">"
       
@@ -279,6 +224,56 @@ server <- function(input, output, session) {
       
     })
     
+    
+    
+    # item_edan ----
+    output$item_edan <- renderUI({
+      if (search_edan == TRUE){
+        req(input$search_term)
+        req(nchar(input$search_term) > min_search_size)
+        
+        results <- session$userData$results
+        
+        if ((dim(results))[1] == 1){
+          res <- results
+        }else{
+          req(input$table1_rows_selected)
+          res <- results[input$table1_rows_selected, ]
+        }
+        
+        req(res)
+        
+        try({
+          query <- gsub('[\"]', '', res$object_number)
+          flog.info(paste0("edan_query: ", query), name = "barcode")
+          
+          results1 <- try(EDANr::searchEDAN(query = query, 
+                                            AppID = AppID, 
+                                            AppKey = AppKey, 
+                                            rows = 1, 
+                                            start = 0), silent = TRUE)
+          
+          if (length(results1$rows) > 0){
+            ids_id <- results1$rows$content$descriptiveNonRepeating$online_media$media[[1]]$idsId
+            
+            if (!is.null(ids_id)){
+              flog.info(paste0("edan_query_ids: ", ids_id), name = "barcode")
+              
+              img_url <- paste0("http://ids.si.edu/ids/deliveryService?id=", ids_id, "&max_w=250")
+              
+              
+              shinyWidgets::panel(
+                p(results1$rows$title),
+                p(results1$rows$content$freetext$notes),
+                tags$img(src = img_url),
+                heading = "Object image from EDAN",
+                status = "primary"
+              )
+            }
+          }
+        }, silent = TRUE)
+      }
+    })
   })  
   
   
