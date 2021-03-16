@@ -28,13 +28,10 @@ This example is from the CHSDM collection and displays the data matrix barcode a
    * [DT](https://cran.r-project.org/package=DT)
    * [RSQLite](https://cran.r-project.org/package=RSQLite)
    * [dplyr](https://cran.r-project.org/package=dplyr)
-   * [futile.logger](https://cran.r-project.org/package=futile.logger)
    * [shinyWidgets](https://cran.r-project.org/package=shinyWidgets)
+   * [qrcode](https://cran.r-project.org/package=qrcode)
    * [EDANr](https://github.com/Smithsonian/EDANr) (If querying EDAN)
  * [Shiny](https://shiny.rstudio.com/)
- * Python and the modules:
-   * PIL
-   * [pylibdmtx](https://github.com/NaturalHistoryMuseum/pylibdmtx)
 
 ## Future enhancements
 

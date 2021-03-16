@@ -6,10 +6,11 @@ library(futile.logger)
 library(shinyWidgets)
 library(shinycssloaders)
 library(DBI)
-
+library(RSQLite)
+library(qrcode)
 
 app_name <- "Virtual Barcodes"
-app_ver <- "0.3.1"
+app_ver <- "0.4.0"
 github_link <- "https://github.com/Smithsonian/VirtualBarcodes/"
 
 options(stringsAsFactors = FALSE)
@@ -22,8 +23,8 @@ if (search_edan == TRUE){
 }
 
 #Logfile
-logfile <- paste0("logs/", format(Sys.time(), "%Y%m%d_%H%M%S"), ".txt")
-flog.logger("barcode", INFO, appender=appender.file(logfile))
+#logfile <- paste0("logs/", format(Sys.time(), "%Y%m%d_%H%M%S"), ".txt")
+#flog.logger("barcode", INFO, appender=appender.file(logfile))
 
 
 
@@ -85,12 +86,12 @@ server <- function(input, output, session) {
       req(input$search_term)
       req(nchar(input$search_term) > min_search_size)
       
-      flog.info(paste0("search_term: ", input$search_term), name = "barcode")
+      #flog.info(paste0("search_term: ", input$search_term), name = "barcode")
       
       results <- search_db(input$search_term, db)
       session$userData$results <- results
       
-      flog.info(paste0("number of results: ", dim(results)[1]), name = "barcode")
+      #flog.info(paste0("number of results: ", dim(results)[1]), name = "barcode")
       
       DT::datatable(results, 
                     escape = FALSE, 
@@ -106,7 +107,8 @@ server <- function(input, output, session) {
     
     
     # item_barcode ----
-    output$item_barcode <- renderImage({
+    #output$item_barcode <- renderImage({
+    output$item_barcode <- renderPlot({
       
       req(input$search_term)
       req(nchar(input$search_term) > min_search_size)
@@ -122,23 +124,24 @@ server <- function(input, output, session) {
       
       req(res)
       
-      flog.info(paste0("item_barcode_res: ", paste(res, collapse = ';')), name = "barcode")
+      #flog.info(paste0("item_barcode_res: ", paste(res, collapse = ';')), name = "barcode")
       
       unique_id <- paste0(image_prefix, res$object_id, image_suffix)
       
-      flog.info(paste0("unique_id: ", unique_id), name = "barcode")
+      #flog.info(paste0("unique_id: ", unique_id), name = "barcode")
       
-      system(paste("python scripts/barcode.py", unique_id, barcode_size))
-      
-      filename <- paste0("data/", unique_id, ".png")
-      
-      if (!file.exists(filename)){
-        #Didn't work, try python3
-        system(paste("python3 scripts/barcode.py", unique_id, barcode_size))
-      }
+      # system(paste("python scripts/barcode.py", unique_id, barcode_size))
+      # 
+      # filename <- paste0("data/", unique_id, ".png")
+      # 
+      # if (!file.exists(filename)){
+      #   #Didn't work, try python3
+      #   system(paste("python3 scripts/barcode.py", unique_id, barcode_size))
+      # }
       
       # Return a list containing the filename and alt text
-      list(src = filename, alt = "Item data matrix")
+      #list(src = filename, alt = "Item data matrix")
+      qrcode_gen(unique_id)
     })
     
     
@@ -245,7 +248,7 @@ server <- function(input, output, session) {
         
         try({
           query <- gsub('[\"]', '', res$object_number)
-          flog.info(paste0("edan_query: ", query), name = "barcode")
+          #flog.info(paste0("edan_query: ", query), name = "barcode")
           
           results1 <- try(EDANr::searchEDAN(query = query, 
                                             AppID = AppID, 
@@ -257,7 +260,7 @@ server <- function(input, output, session) {
             ids_id <- results1$rows$content$descriptiveNonRepeating$online_media$media[[1]]$idsId
             
             if (!is.null(ids_id)){
-              flog.info(paste0("edan_query_ids: ", ids_id), name = "barcode")
+              #flog.info(paste0("edan_query_ids: ", ids_id), name = "barcode")
               
               img_url <- paste0("http://ids.si.edu/ids/deliveryService?id=", ids_id, "&max_w=250")
               
