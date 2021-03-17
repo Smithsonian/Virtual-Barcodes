@@ -2,7 +2,7 @@
 
 R/Shiny app to display virtual barcodes for [DPO Mass Digitization](https://dpo.si.edu/mass-digitization-program) projects.
 
-The app allows to search a local database of objects and displays a data matrix barcode with the ID of the object. In addition, any other data fields present in the database are displayed for the object row selected. 
+The app allows to search a local database of objects and displays a QR code with the ID of the object. In addition, any other data fields present in the database are displayed for the object row selected. 
 
 This app uses a field already in the collection database to link the images taken with the collection record. 
 
@@ -17,7 +17,7 @@ In the case the object has an image in EDAN, this image will be displayed.
 
 ## Screenshots
 
-This example is from the CHSDM collection and displays the data matrix barcode as well as the image of the object from EDAN:
+This example is from the CHSDM collection and displays the QC code as well as the image of the object from EDAN:
 
 ![ch_example](https://user-images.githubusercontent.com/2302171/111470935-be73b000-86fe-11eb-9c01-67bc5c3c8ce1.png)
 
