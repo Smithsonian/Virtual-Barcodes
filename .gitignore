@@ -51,3 +51,4 @@ logs
 
 update_shiny.sh
 
+*.sqlite
