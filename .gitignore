@@ -52,3 +52,8 @@ logs
 update_shiny.sh
 
 *.sqlite
+*.sqlite3
+
+settings_*.R
+
+nmah

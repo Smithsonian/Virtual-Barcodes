@@ -2,15 +2,16 @@
 library(shiny)
 library(DT)
 library(dplyr)
-library(futile.logger)
 library(shinyWidgets)
 library(shinycssloaders)
 library(DBI)
 library(RSQLite)
 library(qrcode)
+library(logr)
+
 
 app_name <- "Virtual Barcodes"
-app_ver <- "0.4.0"
+app_ver <- "0.5.0"
 github_link <- "https://github.com/Smithsonian/VirtualBarcodes/"
 
 options(stringsAsFactors = FALSE)
@@ -23,9 +24,8 @@ if (search_edan == TRUE){
 }
 
 #Logfile
-#logfile <- paste0("logs/", format(Sys.time(), "%Y%m%d_%H%M%S"), ".txt")
-#flog.logger("barcode", INFO, appender=appender.file(logfile))
-
+logfile <- file.path(paste0("logs/", format(Sys.time(), "%Y%m%d_%H%M%S"), ".log"))
+lf <- log_open(logfile, logdir = FALSE, autolog = TRUE)
 
 
 # UI -----
@@ -78,7 +78,7 @@ server <- function(input, output, session) {
   db <- dbConnect(RSQLite::SQLite(), database_file)
   
   observeEvent(input$search_term, {
-    Sys.sleep(1)
+    # Sys.sleep(1)
     
     #table1 ----
     output$table1 <- DT::renderDataTable({
@@ -86,12 +86,10 @@ server <- function(input, output, session) {
       req(input$search_term)
       req(nchar(input$search_term) > min_search_size)
       
-      #flog.info(paste0("search_term: ", input$search_term), name = "barcode")
-      
       results <- search_db(input$search_term, db)
       session$userData$results <- results
-      
-      #flog.info(paste0("number of results: ", dim(results)[1]), name = "barcode")
+
+      log_print(paste("search_term: ", input$search_term))
       
       DT::datatable(results, 
                     escape = FALSE, 
@@ -107,7 +105,6 @@ server <- function(input, output, session) {
     
     
     # item_barcode ----
-    #output$item_barcode <- renderImage({
     output$item_barcode <- renderPlot({
       
       req(input$search_term)
@@ -124,24 +121,11 @@ server <- function(input, output, session) {
       
       req(res)
       
-      #flog.info(paste0("item_barcode_res: ", paste(res, collapse = ';')), name = "barcode")
-      
       unique_id <- paste0(image_prefix, res$object_id, image_suffix)
       
-      #flog.info(paste0("unique_id: ", unique_id), name = "barcode")
+      log_print(paste("unique_id: ", unique_id))
       
-      # system(paste("python scripts/barcode.py", unique_id, barcode_size))
-      # 
-      # filename <- paste0("data/", unique_id, ".png")
-      # 
-      # if (!file.exists(filename)){
-      #   #Didn't work, try python3
-      #   system(paste("python3 scripts/barcode.py", unique_id, barcode_size))
-      # }
-      
-      # Return a list containing the filename and alt text
-      #list(src = filename, alt = "Item data matrix")
-      qrcode_gen(unique_id)
+      plot(qr_code(unique_id))
     })
     
     
@@ -170,9 +154,6 @@ server <- function(input, output, session) {
       
       HTML(unique_id)
     })
-    
-    
-    
     
     
     
@@ -278,9 +259,7 @@ server <- function(input, output, session) {
       }
     })
   })  
-  
-  
-  
+
 }
 
 
@@ -288,8 +267,8 @@ server <- function(input, output, session) {
 shinyApp(ui = ui, server = server, onStart = function() {
   cat("Loading<dt>")
   onStop(function() {
-    cat("Closing")
-    cat("Removing objects")
+    cat("Closing \n")
+    cat("Removing objects \n")
     rm(list = ls())
   })
 })
