@@ -11,7 +11,7 @@ library(logr)
 
 
 app_name <- "Virtual Barcodes"
-app_ver <- "0.5.0"
+app_ver <- "0.5.1"
 github_link <- "https://github.com/Smithsonian/VirtualBarcodes/"
 
 options(stringsAsFactors = FALSE)
@@ -100,7 +100,7 @@ server <- function(input, output, session) {
                                    pageLength = 15, 
                                    paging = TRUE, 
                                    rownames = FALSE)
-      )
+      ) %>% formatStyle(results_table_fields_nowrap, "white-space"="nowrap") %>% formatStyle(1:5, 'vertical-align'='top')
     })
     
     
@@ -121,7 +121,7 @@ server <- function(input, output, session) {
       
       req(res)
       
-      unique_id <- paste0(image_prefix, res$object_id, image_suffix)
+      unique_id <- paste0(image_prefix, res$MKEY, image_suffix)
       
       log_print(paste("unique_id: ", unique_id))
       
@@ -228,10 +228,11 @@ server <- function(input, output, session) {
         req(res)
         
         try({
-          query <- gsub('[\"]', '', res$object_number)
+          query <- gsub('[\"]', '', res$IDNumber)
+          query <- paste0(query, edan_keywords)
           #flog.info(paste0("edan_query: ", query), name = "barcode")
           
-          results1 <- try(EDANr::searchEDAN(query = query, 
+          results1 <- try(EDANr::edan_metadata_search(query = query, 
                                             AppID = AppID, 
                                             AppKey = AppKey, 
                                             rows = 1, 
@@ -241,18 +242,19 @@ server <- function(input, output, session) {
             ids_id <- results1$rows$content$descriptiveNonRepeating$online_media$media[[1]]$idsId
             
             if (!is.null(ids_id)){
-              #flog.info(paste0("edan_query_ids: ", ids_id), name = "barcode")
-              
-              img_url <- paste0("http://ids.si.edu/ids/deliveryService?id=", ids_id, "&max_w=250")
-              
-              
-              shinyWidgets::panel(
-                p(results1$rows$title),
-                p(results1$rows$content$freetext$notes),
-                tags$img(src = img_url),
-                heading = "Object image from EDAN",
-                status = "primary"
-              )
+                ids <- ids_id[1]
+                
+                #flog.info(paste0("edan_query_ids: ", ids_id), name = "barcode")
+                img_url <- paste0("http://ids.si.edu/ids/deliveryService?id=", ids, "&max_w=250")
+                
+                shinyWidgets::panel(
+                    p(results1$rows$title),
+                    # p(paste(results1$rows$content$freetext$notes[[1]]$content, collapse = " ")),
+                    tags$img(src = img_url),
+                    heading = "Object image from EDAN",
+                    status = "primary"
+                )
+            
             }
           }
         }, silent = TRUE)

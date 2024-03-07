@@ -1,6 +1,9 @@
 #Specific name for this project
 project_name <- "Collection Lookup"
 
+
+database_file <- "nmah.sqlite3"
+
 #Prefix and suffix for the images to code in the barcode
 # Either or both can be empty
 image_prefix <- "AHB"
